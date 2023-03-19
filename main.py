@@ -1,5 +1,6 @@
 import whisper
 import tkinter as tk
+import tkinter.font as tkFont
 from tkinter import filedialog
 from googletrans import Translator
 import yt_dlp
@@ -52,11 +53,42 @@ def process_youtube_link():
 
 # Function to translate the selected text
 def translate_text(event):
-    selected_text = output_text.selection_get()
-    if selected_text:
-        translated = translator.translate(selected_text, dest='en')
-        translation_text.delete('1.0', tk.END)
-        translation_text.insert(tk.END, translated.text)
+    if output_text.tag_ranges("sel"):
+        selected_text = output_text.selection_get()
+        if selected_text:
+            translated = translator.translate(selected_text, dest='en')
+            translation_text.delete('1.0', tk.END)
+            translation_text.insert(tk.END, translated.text)
+
+# Function to handle text size changes
+def resize_text(event):
+    font_obj = tkFont.Font(font=output_text.cget('font'))
+    font_size = font_obj['size']
+
+    if event.state == 0x4:
+        # Check if Ctrl key is being held down
+        if event.keysym == 'plus':
+            # Increase text size
+            font_obj.configure(size=font_size+1)
+            output_text.configure(font=font_obj)
+            translation_text.configure(font=font_obj)
+        elif event.keysym == 'minus':
+            # Decrease text size
+            if font_size > 1:
+                font_obj.configure(size=font_size-1)
+                output_text.configure(font=font_obj)
+                translation_text.configure(font=font_obj)
+    elif event.num == 4:
+        # Mouse wheel up
+        font_obj.configure(size=font_size+1)
+        output_text.configure(font=font_obj)
+        translation_text.configure(font=font_obj)
+    elif event.num == 5:
+        # Mouse wheel down
+        if font_size > 1:
+            font_obj.configure(size=font_size-1)
+            output_text.configure(font=font_obj)
+            translation_text.configure(font=font_obj)
 
 # Create and configure tkinter widgets
 select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
@@ -77,6 +109,10 @@ transcription_label.pack()
 output_text = tk.Text(window, height=30, width=80)
 output_text.pack()
 output_text.bind("<<Selection>>", translate_text)
+output_text.bind("<Control-plus>", resize_text)
+output_text.bind("<Control-minus>", resize_text)
+output_text.bind("<Button-4>", resize_text)
+output_text.bind("<Button-5>", resize_text)
 
 translation_label = tk.Label(window, text="Translation")
 translation_label.pack()
