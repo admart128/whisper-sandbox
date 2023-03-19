@@ -2,7 +2,7 @@
 
 This is just a sandbox for me to try out Whisper (https://openai.com/research/whisper).
 
-Select an **mp3** file with Korean or Japanese-language audio and the program will transcribe the audio into the transcription field.
+**Select an mp3 file** or **paste a link to a YouTube video** with Korean or Japanese-language audio and the program will transcribe the audio into the transcription field.
 
 (Other languages work, but aren't officially supported in this project.)
 
