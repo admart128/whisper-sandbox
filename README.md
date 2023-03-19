@@ -2,36 +2,11 @@
 
 This is just a sandbox for me to try out Whisper (https://openai.com/research/whisper).
 
-Select an MP3 file and the program will run Whisper to transcribe the audio as text in the window.
+Select an **mp3** file with Korean or Japanese-language audio and the program will transcribe the audio into the transcription field.
 
-~Adam Martinez
-March 18, 2023
+(Other languages work, but aren't officially supported in this project.)
 
-```python
-import whisper
-import tkinter as tk
-from tkinter import filedialog
+Highlight any text in the transcription field at it will be dynamically translated in the translation field below.
 
-window = tk.Tk()
-window.title("whisper-sandbox")
-window.geometry("750x750")
-
-filename = ""
-
-def select_file():
-    file_path = filedialog.askopenfilename(
-        initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
-    model = whisper.load_model("tiny")
-    result = model.transcribe(file_path)
-    text = result["text"]
-    output_text.delete('1.0', tk.END)
-    output_text.insert(tk.END, text)
-
-button = tk.Button(window, text="Select MP3 File", command=select_file)
-button.pack()
-
-output_text = tk.Text(window, height=40, width=80)
-output_text.pack()
-
-window.mainloop()
-```
+Author: Adam Martinez
+Date: March 18, 2023
