@@ -90,34 +90,59 @@ def resize_text(event):
             output_text.configure(font=font_obj)
             translation_text.configure(font=font_obj)
 
-# Create and configure tkinter widgets
+# create and configure widgets for the first grid
 select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
-select_file_button.pack()
+select_file_button.grid(row=0, column=0, sticky="n")
 
 youtube_url_label = tk.Label(window, text="Enter YouTube video URL")
-youtube_url_label.pack()
+youtube_url_label.grid(row=1, column=0, sticky="n")
 
 youtube_url_entry = tk.Entry(window, width=80)
-youtube_url_entry.pack()
+youtube_url_entry.grid(row=2, column=0, sticky="n")
 
-youtube_button = tk.Button(window, text="Download and Transcribe YouTube Audio", command=process_youtube_link)
-youtube_button.pack()
+youtube_button = tk.Button(window, text="Transcribe YouTube Audio", command=process_youtube_link)
+youtube_button.grid(row=3, column=0, sticky="n")
 
-transcription_label = tk.Label(window, text="Transcription")
-transcription_label.pack()
+# create a frame for the second grid
+frame = tk.Frame(window)
+frame.grid(row=4, column=0, columnspan=2, pady=10)
 
-output_text = tk.Text(window, height=30, width=80)
-output_text.pack()
+transcription_label = tk.Label(frame, text="Transcript")
+transcription_label.grid(row=0, column=0, sticky="n", pady=5)
+
+output_text = tk.Text(frame, height=20, width=30)
+output_text.grid(row=1, column=0, sticky="w")
 output_text.bind("<<Selection>>", translate_text)
 output_text.bind("<Control-plus>", resize_text)
 output_text.bind("<Control-minus>", resize_text)
 output_text.bind("<Button-4>", resize_text)
 output_text.bind("<Button-5>", resize_text)
 
-translation_label = tk.Label(window, text="Translation")
-translation_label.pack()
+translation_label = tk.Label(frame, text="Translation")
+translation_label.grid(row=0, column=1, sticky="n", pady=5)
 
-translation_text = tk.Text(window, height=10, width=80)
-translation_text.pack()
+translation_text = tk.Text(frame, height=20, width=30)
+translation_text.grid(row=1, column=1, sticky="w")
+translation_text.bind("<<Selection>>", translate_text)
+translation_text.bind("<Control-plus>", resize_text)
+translation_text.bind("<Control-minus>", resize_text)
+translation_text.bind("<Button-4>", resize_text)
+translation_text.bind("<Button-5>", resize_text)
 
+# set the height of each row to 0 in the first grid
+for i in range(4):
+    window.grid_rowconfigure(i, minsize=1)
+
+# set the width of the columns in the first grid
+window.columnconfigure(0, weight=1)
+
+# set the height of each row to 0 in the second grid
+for i in range(2):
+    frame.grid_rowconfigure(i, minsize=1)
+
+# set the width of the columns in the second grid
+frame.columnconfigure(0, weight=1)
+frame.columnconfigure(1, weight=1)
+
+# start the main event loop
 window.mainloop()
