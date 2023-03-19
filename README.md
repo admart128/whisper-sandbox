@@ -4,12 +4,8 @@ This is just a sandbox for me to try out Whisper (https://openai.com/research/wh
 
 Select an MP3 file and the program will run Whisper to transcribe the audio as text in the window.
 
-Sample shown below is from YouTube video converted to MP3, source: https://www.youtube.com/watch?v=cZSdU6yYIdk&t=239s
-
 ~Adam Martinez
 March 18, 2023
-
-![sample image](Screenshot_2023-03-18_13-40-53.png)
 
 ```python
 import whisper

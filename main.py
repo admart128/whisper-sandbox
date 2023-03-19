@@ -11,7 +11,7 @@ filename = ""
 def select_file():
     file_path = filedialog.askopenfilename(
         initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
-    model = whisper.load_model("tiny")
+    model = whisper.load_model("medium")
     result = model.transcribe(file_path)
     text = result["text"]
     output_text.delete('1.0', tk.END)
