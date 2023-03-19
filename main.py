@@ -27,7 +27,12 @@ def download_audio_from_youtube(url):
 # Initialize the tkinter window
 window = tk.Tk()
 window.title("whisper-sandbox")
-window.geometry("750x750")
+# get the user's screen dimensions
+screen_width = window.winfo_screenwidth()
+screen_height = window.winfo_screenheight()
+
+# set the size and position of the tkinter window
+window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
 
 translator = Translator()
 
