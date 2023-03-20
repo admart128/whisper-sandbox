@@ -81,10 +81,11 @@ import pygame
 stop_flag = False
 
 # Function to play text-to-speech in a separate thread
-def play_text(text):
+#Awful naming convention, slow=slow. Solve this before deleting this comment.
+def play_text(text, slow=False):
     global stop_flag
     lang_code = detect(text)
-    tts = gTTS(text=text, lang=lang_code, slow=False)
+    tts = gTTS(text=text, lang=lang_code, slow=slow)
     tts.save("temp_speech.mp3")
 
     pygame.mixer.init()
@@ -111,7 +112,8 @@ def translate_text(event):
 
         if event.num == 3:
             menu = tk.Menu(output_text, tearoff=0)
-            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,)).start())
+            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': False}).start())
+            menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': True}).start())
             menu.add_command(label="Abort", command=lambda: stop_tts())
             menu.post(event.x_root, event.y_root)
         if selected_text:
