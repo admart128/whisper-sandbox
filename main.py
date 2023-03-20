@@ -14,6 +14,8 @@ import pygame
 import threading
 import time
 
+#language_code = "en"
+
 #engine = pyttsx3.init()
 
 # Function to download audio from YouTube
@@ -118,7 +120,7 @@ def translate_text(event):
             menu.post(event.x_root, event.y_root)
         if selected_text:
             # Translate the selected text
-            translated = translator.translate(selected_text, dest='en')
+            translated = translator.translate(selected_text, dest=language_code)
             translation_text.delete('1.0', tk.END)
             translation_text.insert(tk.END, translated.text)
 
@@ -225,6 +227,33 @@ for i in range(2):
 # set the width of the columns in the second grid
 frame.columnconfigure(0, weight=1)
 frame.columnconfigure(1, weight=1)
+
+# Initialize a StringVar to store the selected language
+selected_language = tk.StringVar(value="English")
+
+# Create a label and OptionMenu widget for the language selection
+language_label = tk.Label(window, text="Translation Language")
+language_label.grid(row=0, column=1, sticky="w", padx=10)
+
+language_options = ["English", "한국어", "日本語"]
+language_menu = tk.OptionMenu(window, selected_language, *language_options)
+language_menu.grid(row=1, column=1, sticky="w", padx=10)
+
+# Function to handle language selection
+def select_language():
+    global language_code
+    if selected_language.get() == "English":
+        language_code = "en"
+    elif selected_language.get() == "한국어":
+        language_code = "ko"
+    elif selected_language.get() == "日本語":
+        language_code = "ja"
+    # Set the language code for translation
+    translator.dest = language_code
+
+# Bind the select_language function to the OptionMenu widget
+selected_language.trace("w", lambda *args: select_language())
+
 
 # start the main event loop
 window.mainloop()
