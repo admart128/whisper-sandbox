@@ -1,13 +1,21 @@
+from django.template import Engine
 import whisper
 import tkinter as tk
 import tkinter.font as tkFont
 from tkinter import filedialog
 from googletrans import Translator
+#import pyttsx3
+from gtts import gTTS
 import yt_dlp
 import tempfile
 import os
+import pygame
+
+#engine = pyttsx3.init()
 
 # Function to download audio from YouTube
+
+
 def download_audio_from_youtube(url):
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -24,6 +32,7 @@ def download_audio_from_youtube(url):
         temp_file = ydl.prepare_filename(info).replace('.webm', '.mp3')
         return temp_file
 
+
 # Initialize the tkinter window
 window = tk.Tk()
 window.title("whisper-sandbox")
@@ -37,8 +46,11 @@ window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
 translator = Translator()
 
 # Function to select a file and transcribe it
+
+
 def select_file():
-    file_path = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
+    file_path = filedialog.askopenfilename(
+        initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
     model = whisper.load_model("medium")
     result = model.transcribe(file_path)
     text = result["text"]
@@ -46,6 +58,8 @@ def select_file():
     output_text.insert(tk.END, text)
 
 # Function to process a YouTube link and transcribe the audio
+
+
 def process_youtube_link():
     url = youtube_url_entry.get()
     if url:
@@ -57,15 +71,40 @@ def process_youtube_link():
         output_text.insert(tk.END, text)
 
 # Function to translate the selected text
+
+import pygame
+
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='ko', slow=False)
+    tts.save("temp_speech.mp3")
+
+    pygame.mixer.init()
+    pygame.mixer.music.load("temp_speech.mp3")
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
+
+
 def translate_text(event):
     if output_text.tag_ranges("sel"):
         selected_text = output_text.selection_get()
+
+        if event.num == 3:
+            menu = tk.Menu(output_text, tearoff=0)
+            menu.add_command(label="Text to Speech", command=lambda: text_to_speech(selected_text))
+            menu.post(event.x_root, event.y_root)
         if selected_text:
+            # Translate the selected text
             translated = translator.translate(selected_text, dest='en')
             translation_text.delete('1.0', tk.END)
             translation_text.insert(tk.END, translated.text)
 
+ # Create the popup menu for the right-click event
+
+
 # Function to handle text size changes
+
+
 def resize_text(event):
     font_obj = tkFont.Font(font=output_text.cget('font'))
     font_size = font_obj['size']
@@ -95,8 +134,10 @@ def resize_text(event):
             output_text.configure(font=font_obj)
             translation_text.configure(font=font_obj)
 
+
 # create and configure widgets for the first grid
-select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
+select_file_button = tk.Button(
+    window, text="Select MP3 file", command=select_file)
 select_file_button.grid(row=0, column=0, sticky="n")
 
 youtube_url_label = tk.Label(window, text="Enter YouTube video URL")
@@ -105,7 +146,8 @@ youtube_url_label.grid(row=1, column=0, sticky="n")
 youtube_url_entry = tk.Entry(window, width=80)
 youtube_url_entry.grid(row=2, column=0, sticky="n")
 
-youtube_button = tk.Button(window, text="Transcribe YouTube Audio", command=process_youtube_link)
+youtube_button = tk.Button(
+    window, text="Transcribe YouTube Audio", command=process_youtube_link)
 youtube_button.grid(row=3, column=0, sticky="n")
 
 # create a frame for the second grid
@@ -117,6 +159,7 @@ transcription_label.grid(row=0, column=0, sticky="n", pady=5)
 
 output_text = tk.Text(frame, height=20, width=30)
 output_text.grid(row=1, column=0, sticky="w")
+output_text.bind("<Button-3>", translate_text)
 output_text.bind("<<Selection>>", translate_text)
 output_text.bind("<Control-plus>", resize_text)
 output_text.bind("<Control-minus>", resize_text)
