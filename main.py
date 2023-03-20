@@ -11,6 +11,8 @@ import yt_dlp
 import tempfile
 import os
 import pygame
+import threading
+import time
 
 #engine = pyttsx3.init()
 
@@ -75,7 +77,12 @@ def process_youtube_link():
 
 import pygame
 
-def text_to_speech(text):
+# Flag to indicate whether the text-to-speech playback should be stopped
+stop_flag = False
+
+# Function to play text-to-speech in a separate thread
+def play_text(text):
+    global stop_flag
     lang_code = detect(text)
     tts = gTTS(text=text, lang=lang_code, slow=False)
     tts.save("temp_speech.mp3")
@@ -84,16 +91,28 @@ def text_to_speech(text):
     pygame.mixer.music.load("temp_speech.mp3")
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
-        pygame.time.Clock().tick(10)
+        if stop_flag:
+            pygame.mixer.music.stop()
+            stop_flag = False
+            break
+        time.sleep(0.1)
+    pygame.mixer.music.stop()
+    pygame.mixer.quit()
+    # Delete the temporary speech file
+    os.remove("temp_speech.mp3")
 
 
+
+# Function to handle translation and text-to-speech
 def translate_text(event):
+    global stop_flag
     if output_text.tag_ranges("sel"):
         selected_text = output_text.selection_get()
 
         if event.num == 3:
             menu = tk.Menu(output_text, tearoff=0)
-            menu.add_command(label="Text to Speech", command=lambda: text_to_speech(selected_text))
+            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,)).start())
+            menu.add_command(label="Abort", command=lambda: stop_tts())
             menu.post(event.x_root, event.y_root)
         if selected_text:
             # Translate the selected text
@@ -101,7 +120,14 @@ def translate_text(event):
             translation_text.delete('1.0', tk.END)
             translation_text.insert(tk.END, translated.text)
 
- # Create the popup menu for the right-click event
+# Function to stop the text-to-speech playback
+def stop_tts():
+    global stop_flag
+    stop_flag = True
+    while pygame.mixer.music.get_busy():
+        time.sleep(0.1)
+    stop_flag = False
+
 
 
 # Function to handle text size changes
@@ -138,6 +164,10 @@ def resize_text(event):
 
 
 # create and configure widgets for the first grid
+
+abort_button = tk.Button(window, text="Abort", command=stop_tts)
+abort_button.grid(row=2, column=0, sticky="w", pady=5)
+
 select_file_button = tk.Button(
     window, text="Select MP3 file", command=select_file)
 select_file_button.grid(row=0, column=0, sticky="n")
