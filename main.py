@@ -6,6 +6,7 @@ from tkinter import filedialog
 from googletrans import Translator
 #import pyttsx3
 from gtts import gTTS
+from langdetect import detect
 import yt_dlp
 import tempfile
 import os
@@ -75,7 +76,8 @@ def process_youtube_link():
 import pygame
 
 def text_to_speech(text):
-    tts = gTTS(text=text, lang='ko', slow=False)
+    lang_code = detect(text)
+    tts = gTTS(text=text, lang=lang_code, slow=False)
     tts.save("temp_speech.mp3")
 
     pygame.mixer.init()
