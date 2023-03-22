@@ -4,7 +4,6 @@ import tkinter as tk
 import tkinter.font as tkFont
 from tkinter import filedialog
 from googletrans import Translator
-#import pyttsx3
 from gtts import gTTS
 from langdetect import detect
 import yt_dlp
@@ -13,6 +12,9 @@ import os
 import pygame
 import threading
 import time
+
+# Load the whisper model once
+model = whisper.load_model("medium")
 
 #language_code = "en"
 
@@ -56,8 +58,7 @@ translator = Translator()
 def select_file():
     file_path = filedialog.askopenfilename(
         initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
-    model = whisper.load_model("medium")
-    result = model.transcribe(file_path)
+    result = model.transcribe(file_path)  # Reuse the loaded model
     text = result["text"]
     output_text.delete('1.0', tk.END)
     output_text.insert(tk.END, text)
@@ -69,8 +70,7 @@ def process_youtube_link():
     url = youtube_url_entry.get()
     if url:
         file_path = download_audio_from_youtube(url)
-        model = whisper.load_model("medium")
-        result = model.transcribe(file_path)
+        result = model.transcribe(file_path)  # Reuse the loaded model
         text = result["text"]
         output_text.delete('1.0', tk.END)
         output_text.insert(tk.END, text)
@@ -84,6 +84,8 @@ stop_flag = False
 
 # Function to play text-to-speech in a separate thread
 #Awful naming convention, slow=slow. Solve this before deleting this comment.
+#def cover_text(text, )
+
 def play_text(text, slow=False):
     global stop_flag
     lang_code = detect(text)
@@ -116,13 +118,24 @@ def translate_text(event):
             menu = tk.Menu(output_text, tearoff=0)
             menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': False}).start())
             menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': True}).start())
-            menu.add_command(label="Abort", command=lambda: stop_tts())
+            menu.add_command(label="Abort Text to Speech", command=lambda: stop_tts())
+            menu.add_command(label="Cover Text", command=cover_text)
+            menu.add_command(label="Reveal Text", command=reveal_text)
+
             menu.post(event.x_root, event.y_root)
         if selected_text:
             # Translate the selected text
             translated = translator.translate(selected_text, dest=language_code)
             translation_text.delete('1.0', tk.END)
             translation_text.insert(tk.END, translated.text)
+
+def cover_text():
+    if output_text.tag_ranges("sel"):
+        output_text.tag_configure("covered", background="black", foreground="black")
+        output_text.tag_add("covered", output_text.index(tk.SEL_FIRST), output_text.index(tk.SEL_LAST))
+
+def reveal_text():
+    output_text.tag_remove("covered", "1.0", tk.END)
 
 # Function to stop the text-to-speech playback
 def stop_tts():
