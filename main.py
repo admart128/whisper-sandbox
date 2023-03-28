@@ -182,11 +182,7 @@ def resize_text(event):
 
 # create and configure widgets for the first grid
 
-abort_button = tk.Button(window, text="Abort", command=stop_tts)
-abort_button.grid(row=2, column=0, sticky="w", pady=5)
-
-select_file_button = tk.Button(
-    window, text="Select MP3 file", command=select_file)
+select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
 select_file_button.grid(row=0, column=0, sticky="n")
 
 youtube_url_label = tk.Label(window, text="Enter YouTube video URL")
@@ -195,19 +191,21 @@ youtube_url_label.grid(row=1, column=0, sticky="n")
 youtube_url_entry = tk.Entry(window, width=80)
 youtube_url_entry.grid(row=2, column=0, sticky="n")
 
-youtube_button = tk.Button(
-    window, text="Transcribe YouTube Audio", command=process_youtube_link)
+youtube_button = tk.Button(window, text="Transcribe YouTube Audio", command=process_youtube_link)
 youtube_button.grid(row=3, column=0, sticky="n")
+
+abort_button = tk.Button(window, text="Abort Text to Speech", command=stop_tts)
+abort_button.grid(row=4, column=0, sticky="n")
 
 # create a frame for the second grid
 frame = tk.Frame(window)
-frame.grid(row=4, column=0, columnspan=2, pady=10)
+frame.grid(row=5, column=0, columnspan=2)
 
 transcription_label = tk.Label(frame, text="Transcript")
-transcription_label.grid(row=0, column=0, sticky="n", pady=5)
+transcription_label.grid(row=0, column=0, sticky="n")
 
 output_text = tk.Text(frame, height=20, width=30)
-output_text.grid(row=1, column=0, sticky="w")
+output_text.grid(row=1, column=0, sticky="n")
 output_text.bind("<Button-3>", translate_text)
 output_text.bind("<<Selection>>", translate_text)
 output_text.bind("<Control-plus>", resize_text)
@@ -216,10 +214,10 @@ output_text.bind("<Button-4>", resize_text)
 output_text.bind("<Button-5>", resize_text)
 
 translation_label = tk.Label(frame, text="Translation")
-translation_label.grid(row=0, column=1, sticky="n", pady=5)
+translation_label.grid(row=0, column=1, sticky="n")
 
 translation_text = tk.Text(frame, height=20, width=30)
-translation_text.grid(row=1, column=1, sticky="w")
+translation_text.grid(row=1, column=1, sticky="n")
 translation_text.bind("<<Selection>>", translate_text)
 translation_text.bind("<Control-plus>", resize_text)
 translation_text.bind("<Control-minus>", resize_text)
@@ -266,7 +264,6 @@ def select_language():
 
 # Bind the select_language function to the OptionMenu widget
 selected_language.trace("w", lambda *args: select_language())
-
 
 # start the main event loop
 window.mainloop()
