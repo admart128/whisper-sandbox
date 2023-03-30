@@ -1,8 +1,13 @@
-from django.template import Engine
 import whisper
-import tkinter as tk
-import tkinter.font as tkFont
-from tkinter import filedialog
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
+from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
+from kivy.core.window import Window
 from googletrans import Translator
 from gtts import gTTS
 from langdetect import detect
@@ -13,14 +18,200 @@ import pygame
 import threading
 import time
 
+from kivy.config import Config
+from kivy.core.text import LabelBase
+
+fonts_by_language = {
+    'default': 'fonts/NotoSans-Regular.ttf',
+    'ja': 'fonts/NotoSansJP-Regular.otf',
+    'ko': 'fonts/NotoSansKR-Regular.otf',
+    # Add more language codes and fonts if needed
+}
+
+def load_font_for_language(language_code):
+    font_path = fonts_by_language.get(language_code, fonts_by_language['default'])
+    return font_path
+
+# Register the default font
+LabelBase.register(name='default_font', fn_regular='fonts/NotoSans-Regular.ttf')
+
+# Register the Korean font
+LabelBase.register(name='korean_font', fn_regular='fonts/NotoSansKR-Regular.otf')
+
+# Register the Japnaese font
+LabelBase.register(name='japanese_font', fn_regular='fonts/NotoSansJP-Regular.otf')
+
+# Set the default font for Kivy
+Config.set('kivy', 'default_font', ['default_font', 'fonts/NotoSans-Regular.ttf'])
+
 # Load the whisper model once
 model = whisper.load_model("medium")
 
-#language_code = "en"
 
-#engine = pyttsx3.init()
+class TranslationTextInput(TextInput):
+    def __init__(self, **kwargs):
+        super(TranslationTextInput, self).__init__(**kwargs)
+        self.multiline = True
+        self.hint_text = "Translated text will appear here"
+        self.font_name = 'default_font'
+        self.bind(text=self.on_text)
+    
+    def update_font(self, language_code):
+        if language_code == 'ko':
+            self.font_name = 'korean_font'
+        elif language_code == 'ja':
+            self.font_name = 'japanese_font'
+        else:
+            self.font_name = 'default_font'
 
-# Function to download audio from YouTube
+    def on_text(self, instance, value):
+        language_code = detect(value)
+        self.update_font(language_code)
+
+
+
+class TranscriptTextInput(TextInput):
+    def __init__(self, **kwargs):
+        super(TranscriptTextInput, self).__init__(**kwargs)
+        self.multiline = True
+        self.hint_text = "Transcribed text will appear here"
+        self.font_name = 'default_font'
+        self.bind(text=self.on_text)
+        self.translator = Translator()
+        self.stop_flag = False
+
+    def update_font(self, language_code):
+        if language_code == 'ko':
+            self.font_name = 'korean_font'
+        elif language_code == 'ja':
+            self.font_name = 'japanese_font'
+        else:
+            self.font_name = 'default_font'
+
+    def on_text(self, instance, value):
+        language_code = detect(value)
+        self.update_font(language_code)
+    def on_touch_down(self, touch):
+        if touch.button == 'right':
+            self.right_click(touch)
+        return super(TranscriptTextInput, self).on_touch_down(touch)
+
+    def right_click(self, touch):
+        x, y = touch.pos
+        self.select_text(x, y)
+        if self.selection_text:
+            self.translation_text = self.translate(self.selection_text)
+            app = App.get_running_app()
+            app.root.translation_text.text = self.translation_text
+            app.root.translation_text.update_font(detect(self.selection_text)) # Update the font for the translated text
+            threading.Thread(target=self.play_text, args=(self.selection_text,)).start()
+
+    def play_text(self, text):
+        self.stop_flag = False
+        lang_code = detect(text)
+        self.update_font(lang_code)
+        tts = gTTS(text=text, lang=lang_code, slow=False)
+        tts.save("temp_speech.mp3")
+
+        pygame.mixer.init()
+        pygame.mixer.music.load("temp_speech.mp3")
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            if self.stop_flag:
+                pygame.mixer.music.stop()
+                self.stop_flag = False
+                break
+            time.sleep(0.1)
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
+        os.remove("temp_speech.mp3")
+
+    def stop_tts(self):
+        self.stop_flag = True
+
+    def select_text(self, x, y):
+        self.cursor = self.get_cursor_from_xy(x, y)
+        self.select_text(self.cursor, self.cursor)
+        self.selection_to = self.cursor
+
+    def translate(self, text):
+        lang_code = detect(text)
+        translated = self.translator.translate(text, dest=lang_code)
+        return translated.text
+
+
+class RootWidget(BoxLayout):
+    def __init__(self, **kwargs):
+        super(RootWidget, self).__init__(**kwargs)
+        self.orientation = 'vertical'
+
+        self.controls_grid = ControlsGrid()
+        self.add_widget(self.controls_grid)
+
+        self.transcript_text = TranscriptTextInput()
+        self.translation_text = TranslationTextInput()
+
+        self.text_area = BoxLayout(orientation='horizontal')
+        self.text_area.add_widget(self.transcript_text)
+        self.text_area.add_widget(self.translation_text)
+
+        self.add_widget(self.text_area)
+
+
+class ControlsGrid(GridLayout):
+    def __init__(self, **kwargs):
+        super(ControlsGrid, self).__init__(**kwargs)
+        self.cols = 2
+        self.spacing = 10
+        self.padding = 10
+
+        select_file_button = Button(text='Select MP3 file')
+        select_file_button.bind(on_release=self.select_file)
+        self.add_widget(select_file_button)
+
+        youtube_url_label = Label(text='Enter YouTube video URL')
+        self.add_widget(youtube_url_label)
+
+        self.youtube_url_entry = TextInput(hint_text='Enter YouTube URL here')
+        self.add_widget(self.youtube_url_entry)
+
+        youtube_button = Button(text='Transcribe YouTube Audio')
+        youtube_button.bind(on_release=self.process_youtube_link)
+        self.add_widget(youtube_button)
+
+        self.stop_tts_button = Button(text="Stop TTS", on_press=self.stop_tts)
+        self.add_widget(self.stop_tts_button)
+
+    def stop_tts(self, instance):
+        app = App.get_running_app()
+        app.root.transcript_text.stop_tts()
+
+    def select_file(self, instance):
+        file_popup = Popup(title='Select an MP3 file', size_hint=(0.9, 0.9))
+        file_chooser = FileChooserListView(path='/', filters=['*.mp3'])
+        file_popup.add_widget(file_chooser)
+
+        def select(instance):
+            if file_chooser.selection:
+                file_path = file_chooser.selection[0]
+                file_popup.dismiss()
+                result = model.transcribe(file_path)  # Reuse the loaded model
+                text = result["text"]
+                app = App.get_running_app()
+                app.root.transcript_text.text = text
+                app.root.transcript_text.update_font(detect(text)) # Update the font for the transcribed text
+        file_chooser.bind(on_submit=select)
+        file_popup.open()
+
+    def process_youtube_link(self, instance):
+        url = self.youtube_url_entry.text
+        if url:
+            file_path = download_audio_from_youtube(url)
+            result = model.transcribe(file_path)  # Reuse the loaded model
+            text = result["text"]
+            app = App.get_running_app()
+            app.root.transcript_text.text = text
+
 
 
 def download_audio_from_youtube(url):
@@ -40,230 +231,12 @@ def download_audio_from_youtube(url):
         return temp_file
 
 
-# Initialize the tkinter window
-window = tk.Tk()
-window.title("whisper-sandbox")
-# get the user's screen dimensions
-screen_width = window.winfo_screenwidth()
-screen_height = window.winfo_screenheight()
-
-# set the size and position of the tkinter window
-window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
-
-translator = Translator()
-
-# Function to select a file and transcribe it
+class WhisperSandboxApp(App):
+    def build(self):
+        root_widget = RootWidget()
+        return root_widget
 
 
-def select_file():
-    file_path = filedialog.askopenfilename(
-        initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
-    result = model.transcribe(file_path)  # Reuse the loaded model
-    text = result["text"]
-    output_text.delete('1.0', tk.END)
-    output_text.insert(tk.END, text)
-
-# Function to process a YouTube link and transcribe the audio
-
-
-def process_youtube_link():
-    url = youtube_url_entry.get()
-    if url:
-        file_path = download_audio_from_youtube(url)
-        result = model.transcribe(file_path)  # Reuse the loaded model
-        text = result["text"]
-        output_text.delete('1.0', tk.END)
-        output_text.insert(tk.END, text)
-
-# Function to translate the selected text
-
-import pygame
-
-# Flag to indicate whether the text-to-speech playback should be stopped
-stop_flag = False
-
-# Function to play text-to-speech in a separate thread
-#Awful naming convention, slow=slow. Solve this before deleting this comment.
-#def cover_text(text, )
-
-def play_text(text, slow=False):
-    global stop_flag
-    lang_code = detect(text)
-    tts = gTTS(text=text, lang=lang_code, slow=slow)
-    tts.save("temp_speech.mp3")
-
-    pygame.mixer.init()
-    pygame.mixer.music.load("temp_speech.mp3")
-    pygame.mixer.music.play()
-    while pygame.mixer.music.get_busy():
-        if stop_flag:
-            pygame.mixer.music.stop()
-            stop_flag = False
-            break
-        time.sleep(0.1)
-    pygame.mixer.music.stop()
-    pygame.mixer.quit()
-    # Delete the temporary speech file
-    os.remove("temp_speech.mp3")
-
-
-
-# Function to handle translation and text-to-speech
-def translate_text(event):
-    global stop_flag
-    if output_text.tag_ranges("sel"):
-        selected_text = output_text.selection_get()
-
-        if event.num == 3:
-            menu = tk.Menu(output_text, tearoff=0)
-            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': False}).start())
-            menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': True}).start())
-            menu.add_command(label="Abort Text to Speech", command=lambda: stop_tts())
-            menu.add_command(label="Cover Text", command=cover_text)
-            menu.add_command(label="Reveal Text", command=reveal_text)
-
-            menu.post(event.x_root, event.y_root)
-        if selected_text:
-            # Translate the selected text
-            translated = translator.translate(selected_text, dest=language_code)
-            translation_text.delete('1.0', tk.END)
-            translation_text.insert(tk.END, translated.text)
-
-def cover_text():
-    if output_text.tag_ranges("sel"):
-        output_text.tag_configure("covered", background="black", foreground="black")
-        output_text.tag_add("covered", output_text.index(tk.SEL_FIRST), output_text.index(tk.SEL_LAST))
-
-def reveal_text():
-    output_text.tag_remove("covered", "1.0", tk.END)
-
-# Function to stop the text-to-speech playback
-def stop_tts():
-    global stop_flag
-    stop_flag = True
-    while pygame.mixer.music.get_busy():
-        time.sleep(0.1)
-    stop_flag = False
-
-
-
-# Function to handle text size changes
-
-
-def resize_text(event):
-    font_obj = tkFont.Font(font=output_text.cget('font'))
-    font_size = font_obj['size']
-
-    if event.state == 0x4:
-        # Check if Ctrl key is being held down
-        if event.keysym == 'plus':
-            # Increase text size
-            font_obj.configure(size=font_size+1)
-            output_text.configure(font=font_obj)
-            translation_text.configure(font=font_obj)
-        elif event.keysym == 'minus':
-            # Decrease text size
-            if font_size > 1:
-                font_obj.configure(size=font_size-1)
-                output_text.configure(font=font_obj)
-                translation_text.configure(font=font_obj)
-    elif event.num == 4:
-        # Mouse wheel up
-        font_obj.configure(size=font_size+1)
-        output_text.configure(font=font_obj)
-        translation_text.configure(font=font_obj)
-    elif event.num == 5:
-        # Mouse wheel down
-        if font_size > 1:
-            font_obj.configure(size=font_size-1)
-            output_text.configure(font=font_obj)
-            translation_text.configure(font=font_obj)
-
-
-# create and configure widgets for the first grid
-
-select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
-select_file_button.grid(row=0, column=0, sticky="n")
-
-youtube_url_label = tk.Label(window, text="Enter YouTube video URL")
-youtube_url_label.grid(row=1, column=0, sticky="n")
-
-youtube_url_entry = tk.Entry(window, width=80)
-youtube_url_entry.grid(row=2, column=0, sticky="n")
-
-youtube_button = tk.Button(window, text="Transcribe YouTube Audio", command=process_youtube_link)
-youtube_button.grid(row=3, column=0, sticky="n")
-
-abort_button = tk.Button(window, text="Abort Text to Speech", command=stop_tts)
-abort_button.grid(row=4, column=0, sticky="n")
-
-# create a frame for the second grid
-frame = tk.Frame(window)
-frame.grid(row=5, column=0, columnspan=2)
-
-transcription_label = tk.Label(frame, text="Transcript")
-transcription_label.grid(row=0, column=0, sticky="n")
-
-output_text = tk.Text(frame, height=20, width=30)
-output_text.grid(row=1, column=0, sticky="n")
-output_text.bind("<Button-3>", translate_text)
-output_text.bind("<<Selection>>", translate_text)
-output_text.bind("<Control-plus>", resize_text)
-output_text.bind("<Control-minus>", resize_text)
-output_text.bind("<Button-4>", resize_text)
-output_text.bind("<Button-5>", resize_text)
-
-translation_label = tk.Label(frame, text="Translation")
-translation_label.grid(row=0, column=1, sticky="n")
-
-translation_text = tk.Text(frame, height=20, width=30)
-translation_text.grid(row=1, column=1, sticky="n")
-translation_text.bind("<<Selection>>", translate_text)
-translation_text.bind("<Control-plus>", resize_text)
-translation_text.bind("<Control-minus>", resize_text)
-translation_text.bind("<Button-4>", resize_text)
-translation_text.bind("<Button-5>", resize_text)
-
-# set the height of each row to 0 in the first grid
-for i in range(4):
-    window.grid_rowconfigure(i, minsize=1)
-
-# set the width of the columns in the first grid
-window.columnconfigure(0, weight=1)
-
-# set the height of each row to 0 in the second grid
-for i in range(2):
-    frame.grid_rowconfigure(i, minsize=1)
-
-# set the width of the columns in the second grid
-frame.columnconfigure(0, weight=1)
-frame.columnconfigure(1, weight=1)
-
-# Initialize a StringVar to store the selected language
-selected_language = tk.StringVar(value="English")
-
-# Create a label and OptionMenu widget for the language selection
-language_label = tk.Label(window, text="Translation Language")
-language_label.grid(row=0, column=1, sticky="w", padx=10)
-
-language_options = ["English", "한국어", "日本語"]
-language_menu = tk.OptionMenu(window, selected_language, *language_options)
-language_menu.grid(row=1, column=1, sticky="w", padx=10)
-
-# Function to handle language selection
-def select_language():
-    global language_code
-    if selected_language.get() == "English":
-        language_code = "en"
-    elif selected_language.get() == "한국어":
-        language_code = "ko"
-    elif selected_language.get() == "日本語":
-        language_code = "ja"
-    # Set the language code for translation
-    translator.dest = language_code
-
-# Bind the select_language function to the OptionMenu widget
-selected_language.trace("w", lambda *args: select_language())
-
-# start the main event loop
-window.mainloop()
+if __name__ == '__main__':
+    Window.clearcolor = (1, 1, 1, 1)
+    WhisperSandboxApp().run()
