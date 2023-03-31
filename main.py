@@ -38,7 +38,7 @@ LabelBase.register(name='default_font', fn_regular='fonts/NotoSans-Regular.ttf')
 # Register the Korean font
 LabelBase.register(name='korean_font', fn_regular='fonts/NotoSansKR-Regular.otf')
 
-# Register the Japnaese font
+# Register the Japanese font
 LabelBase.register(name='japanese_font', fn_regular='fonts/NotoSansJP-Regular.otf')
 
 # Set the default font for Kivy
@@ -91,19 +91,20 @@ class TranscriptTextInput(TextInput):
     def on_text(self, instance, value):
         language_code = detect(value)
         self.update_font(language_code)
+
     def on_touch_down(self, touch):
         if touch.button == 'right':
-            self.right_click(touch)
-        return super(TranscriptTextInput, self).on_touch_down(touch)
+            self.right_click(touch.x, touch.y)
+        else:
+            super().on_touch_down(touch)
 
-    def right_click(self, touch):
-        x, y = touch.pos
+    def right_click(self, x, y):
         self.select_text(x, y)
         if self.selection_text:
             self.translation_text = self.translate(self.selection_text)
             app = App.get_running_app()
             app.root.translation_text.text = self.translation_text
-            app.root.translation_text.update_font(detect(self.selection_text)) # Update the font for the translated text
+            app.root.translation_text.update_font(detect(self.selection_text))  # Update the font for the translated text
             threading.Thread(target=self.play_text, args=(self.selection_text,)).start()
 
     def play_text(self, text):
@@ -130,15 +131,17 @@ class TranscriptTextInput(TextInput):
         self.stop_flag = True
 
     def select_text(self, x, y):
-        self.cursor = self.get_cursor_from_xy(x, y)
-        self.select_text(self.cursor, self.cursor)
-        self.selection_to = self.cursor
+        cursor = self.get_cursor_from_xy(x, y)
+        if cursor:
+            self.cursor = cursor
+            #self.select_text(cursor[0], cursor[1])
+            self.__dict__['selection_from'] = cursor
+            self.__dict__['selection_to'] = cursor
 
     def translate(self, text):
         lang_code = detect(text)
         translated = self.translator.translate(text, dest=lang_code)
         return translated.text
-
 
 class RootWidget(BoxLayout):
     def __init__(self, **kwargs):
@@ -236,7 +239,7 @@ class WhisperSandboxApp(App):
         root_widget = RootWidget()
         return root_widget
 
-
 if __name__ == '__main__':
     Window.clearcolor = (1, 1, 1, 1)
     WhisperSandboxApp().run()
+
