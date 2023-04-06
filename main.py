@@ -106,16 +106,16 @@ def play_text(text, slow=False):
     # Delete the temporary speech file
     os.remove("temp_speech.mp3")
 
-
-
 # Function to handle translation and text-to-speech
-def translate_text(event):
+def highlight_text(event):
     global stop_flag
     if output_text.tag_ranges("sel"):
+        global selected_text 
         selected_text = output_text.selection_get()
 
         if event.num == 3:
             menu = tk.Menu(output_text, tearoff=0)
+            menu.add_command(label="Translate", command=translate_text)
             menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': False}).start())
             menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': True}).start())
             menu.add_command(label="Abort Text to Speech", command=lambda: stop_tts())
@@ -123,11 +123,11 @@ def translate_text(event):
             menu.add_command(label="Reveal Text", command=reveal_text)
 
             menu.post(event.x_root, event.y_root)
-        if selected_text:
-            # Translate the selected text
-            translated = translator.translate(selected_text, dest=language_code)
-            translation_text.delete('1.0', tk.END)
-            translation_text.insert(tk.END, translated.text)
+
+def translate_text():
+    translated = translator.translate(selected_text, dest=language_code)
+    translation_text.delete('1.0', tk.END)
+    translation_text.insert(tk.END, translated.text)
 
 def cover_text():
     if output_text.tag_ranges("sel"):
@@ -206,8 +206,8 @@ transcription_label.grid(row=0, column=0, sticky="n")
 
 output_text = tk.Text(frame, height=20, width=30)
 output_text.grid(row=1, column=0, sticky="n")
-output_text.bind("<Button-3>", translate_text)
-output_text.bind("<<Selection>>", translate_text)
+output_text.bind("<Button-3>", highlight_text)
+output_text.bind("<<Selection>>", highlight_text)
 output_text.bind("<Control-plus>", resize_text)
 output_text.bind("<Control-minus>", resize_text)
 output_text.bind("<Button-4>", resize_text)
