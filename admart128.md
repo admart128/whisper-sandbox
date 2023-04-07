@@ -1,10 +1,6 @@
 
 # To Do
 
-feat: Remove langdetect
-
-    Remove langdetect to make way for adding "Input Language" and "Output Language" OptionMenus next.
-
 refactor: Replace "Translation" OptionMenu with "Input Language" and "Output Language" OptionMenus
 
     Support only Enlgish (en), Korean (ko), and Japanese (ja) for the time being.
@@ -16,6 +12,12 @@ fix: Fix issue in which the right-click context menu does not behave as expected
     After this fix, clicking outside of an open context menu closes the menu.
 
 # Completed
+
+feat: Remove langdetect
+
+    Remove langdetect to make way for adding "Input Language" and "Output Language" OptionMenus next.
+
+    lang_code = "en" for the time being.
 
 refactor: Replace unintended continuous text translation with a translate command in the right-click context menu
 

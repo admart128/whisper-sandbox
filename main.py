@@ -5,7 +5,6 @@ import tkinter.font as tkFont
 from tkinter import filedialog
 from googletrans import Translator
 from gtts import gTTS
-from langdetect import detect
 import yt_dlp
 import tempfile
 import os
@@ -88,7 +87,7 @@ stop_flag = False
 
 def play_text(text, slow=False):
     global stop_flag
-    lang_code = detect(text)
+    lang_code = "en"
     tts = gTTS(text=text, lang=lang_code, slow=slow)
     tts.save("temp_speech.mp3")
 
