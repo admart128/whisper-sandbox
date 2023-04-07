@@ -1,18 +1,17 @@
+# Completed
 
-# To Do
-
-fix: Fix issue in which the right-click context menu does not behave as expected.
+fix/feat: Fix issue in which the right-click context menu does not behave as expected. Also, add Cut, Copy, and Paste features.
 
     Before this fix, when the user clicks outside of an open context menu, a new menu appears.
 
     After this fix, clicking outside of an open context menu closes the menu.
 
-# Completed
+    Also, basic Cut, Copy, and Paste functionality have been added.
 
 refactor: Replace "Translation" OptionMenu with "Input Language" and "Output Language" OptionMenus
 
     Support only Enlgish (en), Korean (ko), and Japanese (ja) for the time being.
-    
+
 feat: Remove langdetect
 
     Remove langdetect to make way for adding "Input Language" and "Output Language" OptionMenus next.
