@@ -1,4 +1,3 @@
-from django.template import Engine
 import whisper
 import tkinter as tk
 import tkinter.font as tkFont
@@ -12,15 +11,19 @@ import pygame
 import threading
 import time
 
-# Load the whisper model once
 model = whisper.load_model("medium")
 
-#language_code = "en"
+window = tk.Tk()
+window.title("🐦 wordbird")
+screen_width = window.winfo_screenwidth()
+screen_height = window.winfo_screenheight()
+window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
 
-#engine = pyttsx3.init()
-
-# Function to download audio from YouTube
-
+translator = Translator()
+selected_input_language = tk.StringVar(value="English")
+selected_output_language = tk.StringVar(value="English")
+input_language_code = tk.StringVar(value="en")
+output_language_code = tk.StringVar(value="en")
 
 def download_audio_from_youtube(url):
     ydl_opts = {
@@ -38,57 +41,31 @@ def download_audio_from_youtube(url):
         temp_file = ydl.prepare_filename(info).replace('.webm', '.mp3')
         return temp_file
 
-
-# Initialize the tkinter window
-window = tk.Tk()
-window.title("whisper-sandbox")
-# get the user's screen dimensions
-screen_width = window.winfo_screenwidth()
-screen_height = window.winfo_screenheight()
-
-# set the size and position of the tkinter window
-window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
-
-translator = Translator()
-
-# Function to select a file and transcribe it
-
-
 def select_file():
     file_path = filedialog.askopenfilename(
         initialdir="/", title="Select A File", filetypes=(("mp3 files", "*.mp3"),))
     result = model.transcribe(file_path)  # Reuse the loaded model
     text = result["text"]
-    output_text.delete('1.0', tk.END)
-    output_text.insert(tk.END, text)
-
-# Function to process a YouTube link and transcribe the audio
-
+    transcript_text.delete('1.0', tk.END)
+    transcript_text.insert(tk.END, text)
 
 def process_youtube_link():
     url = youtube_url_entry.get()
     if url:
         file_path = download_audio_from_youtube(url)
-        result = model.transcribe(file_path)  # Reuse the loaded model
+        result = model.transcribe(file_path)
         text = result["text"]
-        output_text.delete('1.0', tk.END)
-        output_text.insert(tk.END, text)
+        transcript_text.delete('1.0', tk.END)
+        transcript_text.insert(tk.END, text)
 
-# Function to translate the selected text
-
-import pygame
-
-# Flag to indicate whether the text-to-speech playback should be stopped
 stop_flag = False
+lang_code = "en"
 
-# Function to play text-to-speech in a separate thread
-#Awful naming convention, slow=slow. Solve this before deleting this comment.
-#def cover_text(text, )
-
-def play_text(text, slow=False):
+def play_text(text, slow=False, language_code="en"):
     global stop_flag
-    lang_code = "en"
-    tts = gTTS(text=text, lang=lang_code, slow=slow)
+    print("Playing Text:", text)
+    print("Language Code:", lang_code)
+    tts = gTTS(text=text, lang=language_code, slow=slow)
     tts.save("temp_speech.mp3")
 
     pygame.mixer.init()
@@ -102,41 +79,61 @@ def play_text(text, slow=False):
         time.sleep(0.1)
     pygame.mixer.music.stop()
     pygame.mixer.quit()
-    # Delete the temporary speech file
     os.remove("temp_speech.mp3")
 
-# Function to handle translation and text-to-speech
+
+#def highlight_selection(event):
+  #  event.widget.tag_configure(tk.SEL, background="lightblue")
+   # event.widget.tag_raise(tk.SEL)
+
 def highlight_text(event):
-    global stop_flag
-    if output_text.tag_ranges("sel"):
-        global selected_text 
-        selected_text = output_text.selection_get()
+    if event.widget.tag_ranges("sel"):
+        selected_text = event.widget.selection_get()
+
+        if event.widget == transcript_text:
+            lang_code = input_language_code.get()
+        elif event.widget == translation_text:
+            lang_code = output_language_code.get()
 
         if event.num == 3:
-            menu = tk.Menu(output_text, tearoff=0)
+            menu = tk.Menu(event.widget, tearoff=0)
+
+         
             menu.add_command(label="Translate", command=translate_text)
-            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': False}).start())
-            menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(target=play_text, args=(selected_text,), kwargs={'slow': True}).start())
-            menu.add_command(label="Abort Text to Speech", command=lambda: stop_tts())
-            menu.add_command(label="Cover Text", command=cover_text)
-            menu.add_command(label="Reveal Text", command=reveal_text)
+            menu.add_command(label="Text to Speech", command=lambda: threading.Thread(
+                target=play_text, args=(selected_text,), kwargs={'slow': False, 'language_code': lang_code}).start())
+            menu.add_command(label="Text to Speech (Slow)", command=lambda: threading.Thread(
+                target=play_text, args=(selected_text,), kwargs={'slow': True, 'language_code': lang_code}).start())
+            menu.add_command(label="Abort Text to Speech",
+                             command=lambda: stop_tts())
+            menu.add_command(label="Cover Text", command=lambda: cover_text(event))
+            menu.add_command(label="Reveal Text", command=lambda: reveal_text(event))
 
             menu.post(event.x_root, event.y_root)
 
+
 def translate_text():
-    translated = translator.translate(selected_text, dest=language_code)
+    selected_text = transcript_text.selection_get()
+    print("Selected Text:", selected_text)
+    translated = translator.translate(selected_text, dest=output_language_code.get())
+    print("Translation:", translated.text)
     translation_text.delete('1.0', tk.END)
     translation_text.insert(tk.END, translated.text)
 
-def cover_text():
-    if output_text.tag_ranges("sel"):
-        output_text.tag_configure("covered", background="black", foreground="black")
-        output_text.tag_add("covered", output_text.index(tk.SEL_FIRST), output_text.index(tk.SEL_LAST))
 
-def reveal_text():
-    output_text.tag_remove("covered", "1.0", tk.END)
+def cover_text(event):
+    widget = event.widget
+    if widget.tag_ranges("sel"):
+        widget.tag_configure(
+            "covered", background="black", foreground="black")
+        widget.tag_add("covered", widget.index(
+            tk.SEL_FIRST), widget.index(tk.SEL_LAST))
 
-# Function to stop the text-to-speech playback
+def reveal_text(event):
+    widget = event.widget
+    if widget.tag_ranges("sel"):
+        widget.tag_remove("covered", "1.0", tk.END)
+
 def stop_tts():
     global stop_flag
     stop_flag = True
@@ -144,44 +141,32 @@ def stop_tts():
         time.sleep(0.1)
     stop_flag = False
 
-
-
-# Function to handle text size changes
-
-
 def resize_text(event):
-    font_obj = tkFont.Font(font=output_text.cget('font'))
+    font_obj = tkFont.Font(font=transcript_text.cget('font'))
     font_size = font_obj['size']
 
     if event.state == 0x4:
-        # Check if Ctrl key is being held down
         if event.keysym == 'plus':
-            # Increase text size
             font_obj.configure(size=font_size+1)
-            output_text.configure(font=font_obj)
+            transcript_text.configure(font=font_obj)
             translation_text.configure(font=font_obj)
         elif event.keysym == 'minus':
-            # Decrease text size
             if font_size > 1:
                 font_obj.configure(size=font_size-1)
-                output_text.configure(font=font_obj)
+                transcript_text.configure(font=font_obj)
                 translation_text.configure(font=font_obj)
     elif event.num == 4:
-        # Mouse wheel up
         font_obj.configure(size=font_size+1)
-        output_text.configure(font=font_obj)
+        transcript_text.configure(font=font_obj)
         translation_text.configure(font=font_obj)
     elif event.num == 5:
-        # Mouse wheel down
         if font_size > 1:
             font_obj.configure(size=font_size-1)
-            output_text.configure(font=font_obj)
+            transcript_text.configure(font=font_obj)
             translation_text.configure(font=font_obj)
 
-
-# create and configure widgets for the first grid
-
-select_file_button = tk.Button(window, text="Select MP3 file", command=select_file)
+select_file_button = tk.Button(
+    window, text="Select MP3 file", command=select_file)
 select_file_button.grid(row=0, column=0, sticky="n")
 
 youtube_url_label = tk.Label(window, text="Enter YouTube video URL")
@@ -190,79 +175,123 @@ youtube_url_label.grid(row=1, column=0, sticky="n")
 youtube_url_entry = tk.Entry(window, width=80)
 youtube_url_entry.grid(row=2, column=0, sticky="n")
 
-youtube_button = tk.Button(window, text="Transcribe YouTube Audio", command=process_youtube_link)
+youtube_button = tk.Button(
+    window, text="Transcribe YouTube Audio", command=process_youtube_link)
 youtube_button.grid(row=3, column=0, sticky="n")
 
 abort_button = tk.Button(window, text="Abort Text to Speech", command=stop_tts)
 abort_button.grid(row=4, column=0, sticky="n")
 
-# create a frame for the second grid
 frame = tk.Frame(window)
 frame.grid(row=5, column=0, columnspan=2)
 
-transcription_label = tk.Label(frame, text="Transcript")
-transcription_label.grid(row=0, column=0, sticky="n")
+transcript_label = tk.Label(frame, text="Transcript")
+transcript_label.grid(row=0, column=0, sticky="n")
 
-output_text = tk.Text(frame, height=20, width=30)
-output_text.grid(row=1, column=0, sticky="n")
-output_text.bind("<Button-3>", highlight_text)
-output_text.bind("<<Selection>>", highlight_text)
-output_text.bind("<Control-plus>", resize_text)
-output_text.bind("<Control-minus>", resize_text)
-output_text.bind("<Button-4>", resize_text)
-output_text.bind("<Button-5>", resize_text)
+transcript_text = tk.Text(frame, height=20, width=30)
+transcript_text.grid(row=1, column=0, sticky="n")
+transcript_text.bind("<Button-3>", highlight_text)
+transcript_text.bind("<<Selection>>", highlight_text)
+transcript_text.bind("<Button-4>", resize_text)
+transcript_text.bind("<Button-5>", resize_text)
 
 translation_label = tk.Label(frame, text="Translation")
 translation_label.grid(row=0, column=1, sticky="n")
 
 translation_text = tk.Text(frame, height=20, width=30)
 translation_text.grid(row=1, column=1, sticky="n")
-translation_text.bind("<<Selection>>", translate_text)
-translation_text.bind("<Control-plus>", resize_text)
-translation_text.bind("<Control-minus>", resize_text)
+translation_text.bind("<Button-3>", highlight_text)
+translation_text.bind("<<Selection>>", highlight_text)
 translation_text.bind("<Button-4>", resize_text)
 translation_text.bind("<Button-5>", resize_text)
 
-# set the height of each row to 0 in the first grid
+
 for i in range(4):
     window.grid_rowconfigure(i, minsize=1)
-
-# set the width of the columns in the first grid
 window.columnconfigure(0, weight=1)
-
-# set the height of each row to 0 in the second grid
 for i in range(2):
     frame.grid_rowconfigure(i, minsize=1)
-
-# set the width of the columns in the second grid
 frame.columnconfigure(0, weight=1)
 frame.columnconfigure(1, weight=1)
 
-# Initialize a StringVar to store the selected language
-selected_language = tk.StringVar(value="English")
+#selected_language = tk.StringVar(value="English")
 
-# Create a label and OptionMenu widget for the language selection
-language_label = tk.Label(window, text="Translation Language")
-language_label.grid(row=0, column=1, sticky="w", padx=10)
+class CustomOptionMenu(tk.OptionMenu):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bind("<FocusIn>", self._on_focus_in)
+        self.bind("<FocusOut>", self._on_focus_out)
 
-language_options = ["English", "한국어", "日本語"]
-language_menu = tk.OptionMenu(window, selected_language, *language_options)
-language_menu.grid(row=1, column=1, sticky="w", padx=10)
+    def _on_focus_in(self, event):
+        self.previous_focus = self.focus_get()
 
-# Function to handle language selection
-def select_language():
-    global language_code
-    if selected_language.get() == "English":
-        language_code = "en"
-    elif selected_language.get() == "한국어":
-        language_code = "ko"
-    elif selected_language.get() == "日本語":
-        language_code = "ja"
-    # Set the language code for translation
-    translator.dest = language_code
+    def _on_focus_out(self, event):
+        if self.previous_focus:
+            self.previous_focus.focus_set()
 
-# Bind the select_language function to the OptionMenu widget
-selected_language.trace("w", lambda *args: select_language())
 
-# start the main event loop
+input_language_label = tk.Label(window, text="Input Language")
+input_language_label.grid(row=0, column=1, sticky="w", padx=10)
+
+input_language_options = ["English", "한국어", "日本語"]
+#input_language_menu = tk.OptionMenu(
+#    window, selected_input_language, *input_language_options)
+#input_language_menu.grid(row=1, column=1, sticky="w", padx=10)
+input_language_menu = CustomOptionMenu(
+    window, selected_input_language, *input_language_options)
+input_language_menu.grid(row=1, column=1, sticky="w", padx=10)
+
+output_language_label = tk.Label(window, text="Output Language")
+output_language_label.grid(row=2, column=1, sticky="w", padx=10)
+
+def save_and_restore_selection(widget, command):
+    selection_exists = bool(widget.tag_ranges("sel"))
+    if selection_exists:
+        start_index = widget.index(tk.SEL_FIRST)
+        end_index = widget.index(tk.SEL_LAST)
+    command()
+    if selection_exists:
+        widget.tag_add("sel", start_index, end_index)
+
+
+output_language_options = ["English", "한국어", "日本語"]
+#output_language_menu = tk.OptionMenu(
+#    window, selected_output_language, *output_language_options)
+#output_language_menu.grid(row=3, column=1, sticky="w", padx=10)
+
+output_language_menu = CustomOptionMenu(
+    window, selected_output_language, *output_language_options)
+output_language_menu.grid(row=3, column=1, sticky="w", padx=10)
+
+
+
+def select_input_language(*args):
+    global input_language_code
+    if selected_input_language.get() == "English":
+        input_language_code.set("en")
+    elif selected_input_language.get() == "한국어":
+        input_language_code.set("ko")
+    elif selected_input_language.get() == "日本語":
+        input_language_code.set("ja")
+
+def select_output_language(*args):
+    global output_language_code
+    if selected_output_language.get() == "English":
+        output_language_code.set("en")
+    elif selected_output_language.get() == "한국어":
+        output_language_code.set("ko")
+    elif selected_output_language.get() == "日本語":
+        output_language_code.set("ja")
+
+input_language_menu = tk.OptionMenu(
+    window, selected_input_language, *input_language_options)
+input_language_menu.grid(row=1, column=1, sticky="w", padx=10)
+
+output_language_menu = tk.OptionMenu(
+    window, selected_output_language, *output_language_options)
+output_language_menu.grid(row=3, column=1, sticky="w", padx=10)
+
+selected_input_language.trace("w", select_input_language)
+selected_output_language.trace("w", select_output_language)
+
 window.mainloop()
