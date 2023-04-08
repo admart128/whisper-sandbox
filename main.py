@@ -19,6 +19,8 @@ screen_width = window.winfo_screenwidth()
 screen_height = window.winfo_screenheight()
 window.geometry("%dx%d+%d+0" % (screen_width // 2, screen_height, 0))
 
+image = tk.PhotoImage(file="images/birb.png")
+
 context_menu = None
 
 translator = Translator()
@@ -315,6 +317,8 @@ class CustomOptionMenu(tk.OptionMenu):
         if self.previous_focus:
             self.previous_focus.focus_set()
 
+birb_label = tk.Label(window, image=image)
+birb_label.grid(row=0, column=0, sticky="w", padx=10)
 
 input_language_label = tk.Label(window, text="Input Language")
 input_language_label.grid(row=0, column=1, sticky="w", padx=10)
